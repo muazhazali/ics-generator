@@ -116,41 +116,29 @@ export default function CalendarEventCreator() {
         message: "Extracting event details with AI...",
       })
 
-      // Simulate AI processing
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Call our API endpoint
+      const response = await fetch('/api/process-event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: contentToProcess }),
+      })
 
-      // Simulate AI extraction results based on content
-      const aiExtractedData: EventData = {
-        title: contentToProcess.toLowerCase().includes("meeting")
-          ? "Team Meeting - Project Kickoff"
-          : contentToProcess.toLowerCase().includes("party")
-            ? "Holiday Party"
-            : contentToProcess.toLowerCase().includes("conference")
-              ? "Annual Conference"
-              : "Event",
-        date: "2024-12-15",
-        startTime: contentToProcess.toLowerCase().includes("party") ? "18:00" : "14:00",
-        endTime: contentToProcess.toLowerCase().includes("party") ? "22:00" : "15:30",
-        location: contentToProcess.toLowerCase().includes("meeting")
-          ? "Conference Room A, 123 Main St, New York, NY"
-          : contentToProcess.toLowerCase().includes("party")
-            ? "Grand Ballroom, Downtown Hotel"
-            : "TBD",
-        description: contentToProcess.toLowerCase().includes("meeting")
-          ? "Quarterly planning meeting to discuss project goals and timeline."
-          : contentToProcess.toLowerCase().includes("party")
-            ? "Join us for our annual holiday celebration! RSVP by December 18th."
-            : "Event details extracted from provided content.",
-        timezone: "America/New_York",
+      if (!response.ok) {
+        throw new Error('Failed to process event information')
       }
 
+      const aiExtractedData = await response.json()
       setEventData(aiExtractedData)
+      
       setProcessingState({
         status: "completed",
         progress: 100,
         message: "Event details extracted successfully!",
       })
     } catch (error) {
+      console.error('Error processing event:', error)
       setProcessingState({
         status: "error",
         progress: 0,
@@ -213,7 +201,16 @@ END:VCALENDAR`
     })
   }
 
-  const canExtract = (inputMethod === "text" && textInput.trim()) || (inputMethod === "file" && uploadedFile)
+  const canExtract = (inputMethod === "text" && textInput.trim().length > 0) || (inputMethod === "file" && uploadedFile !== null)
+
+  // Add console logging to debug button state
+  console.log('Button state:', {
+    inputMethod,
+    textInputLength: textInput.trim().length,
+    hasUploadedFile: uploadedFile !== null,
+    canExtract,
+    processingState: processingState.status
+  })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
