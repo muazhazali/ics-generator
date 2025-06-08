@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       endTime: eventData.endTime || '10:00',
       location: eventData.location || '',
       description: eventData.description || '',
-      timezone: 'America/New_York'
+      timezone: eventData.timezone || 'America/New_York'
     }
 
     return NextResponse.json(processedData)
@@ -77,7 +77,7 @@ async function processWithAI(content: string, retryCount = 0): Promise<any> {
 
   try {
     const chatCompletion = await cerebras.chat.completions.create({
-      model: "llama-4-scout-17b-16e-instruct",
+      model: "llama-3.3-70b",
       messages: [
         {
           role: "system",
@@ -89,6 +89,16 @@ async function processWithAI(content: string, retryCount = 0): Promise<any> {
           - End time (in HH:MM format, 24-hour format)
           - Location
           - Description (any relevant information about the event)
+          - Timezone (detect from context, location, or explicit mentions)
+          
+          For timezone detection, look for:
+          - Explicit timezone mentions (EST, PST, GMT+8, UTC, etc.)
+          - City/location names that indicate timezone (New York = America/New_York, Singapore = Asia/Singapore, etc.)
+          - Time format indicators (9:00 AM EST, 14:00 JST, etc.)
+          - Country/region context
+          
+          Return the timezone in IANA timezone format (e.g., "America/New_York", "Asia/Singapore", "Europe/London").
+          If no timezone can be determined, return "America/New_York" as default.
           
           Return ONLY a valid JSON object with these exact keys:
           {
@@ -97,10 +107,11 @@ async function processWithAI(content: string, retryCount = 0): Promise<any> {
             "startTime": "HH:MM",
             "endTime": "HH:MM",
             "location": "string",
-            "description": "string"
+            "description": "string",
+            "timezone": "string"
           }
           
-          If you cannot find specific information, use empty strings for missing fields.`,
+          If you cannot find specific information, use empty strings for missing fields (except timezone which should default to "America/New_York").`,
         },
         {
           role: "user",
@@ -176,7 +187,8 @@ function processLocally(content: string): any {
     startTime: extractTime(content, 'start'),
     endTime: extractTime(content, 'end'),
     location: extractLocation(content),
-    description: extractDescription(content)
+    description: extractDescription(content),
+    timezone: extractTimezone(content)
   }
 
   console.log('Local processing result:', eventData)
@@ -327,4 +339,144 @@ function extractDescription(text: string): string {
   }
   
   return ''
+}
+
+function extractTimezone(text: string): string {
+  // Timezone mapping for common abbreviations and locations
+  const timezoneMap: { [key: string]: string } = {
+    // US Timezones
+    'EST': 'America/New_York',
+    'EDT': 'America/New_York',
+    'CST': 'America/Chicago',
+    'CDT': 'America/Chicago',
+    'MST': 'America/Denver',
+    'MDT': 'America/Denver',
+    'PST': 'America/Los_Angeles',
+    'PDT': 'America/Los_Angeles',
+    'AKST': 'America/Anchorage',
+    'AKDT': 'America/Anchorage',
+    'HST': 'Pacific/Honolulu',
+    
+    // International
+    'UTC': 'UTC',
+    'GMT': 'UTC',
+    'BST': 'Europe/London',
+    'CET': 'Europe/Paris',
+    'CEST': 'Europe/Paris',
+    'JST': 'Asia/Tokyo',
+    'KST': 'Asia/Seoul',
+    'CCT': 'Asia/Shanghai', // China Standard Time (using CCT to avoid conflict)
+    'SGT': 'Asia/Singapore',
+    'HKT': 'Asia/Hong_Kong',
+    'IST': 'Asia/Kolkata',
+    'AEST': 'Australia/Sydney',
+    'AEDT': 'Australia/Sydney',
+    
+    // Cities and locations
+    'new york': 'America/New_York',
+    'nyc': 'America/New_York',
+    'chicago': 'America/Chicago',
+    'denver': 'America/Denver',
+    'los angeles': 'America/Los_Angeles',
+    'la': 'America/Los_Angeles',
+    'san francisco': 'America/Los_Angeles',
+    'seattle': 'America/Los_Angeles',
+    'london': 'Europe/London',
+    'paris': 'Europe/Paris',
+    'berlin': 'Europe/Berlin',
+    'rome': 'Europe/Rome',
+    'tokyo': 'Asia/Tokyo',
+    'seoul': 'Asia/Seoul',
+    'singapore': 'Asia/Singapore',
+    'hong kong': 'Asia/Hong_Kong',
+    'shanghai': 'Asia/Shanghai',
+    'beijing': 'Asia/Shanghai',
+    'mumbai': 'Asia/Kolkata',
+    'delhi': 'Asia/Kolkata',
+    'sydney': 'Australia/Sydney',
+    'melbourne': 'Australia/Melbourne',
+    'auckland': 'Pacific/Auckland',
+  }
+  
+  const lowerText = text.toLowerCase()
+  
+  // Look for explicit timezone mentions
+  const timezonePatterns = [
+    /\b(EST|EDT|CST|CDT|MST|MDT|PST|PDT|AKST|AKDT|HST|UTC|GMT|BST|CET|CEST|JST|KST|CCT|SGT|HKT|IST|AEST|AEDT)\b/gi,
+    /GMT([+-]\d{1,2}):?(\d{2})?/gi,
+    /UTC([+-]\d{1,2}):?(\d{2})?/gi,
+  ]
+  
+  for (const pattern of timezonePatterns) {
+    const matches = text.matchAll(pattern)
+    for (const match of matches) {
+      const tz = match[1]?.toUpperCase()
+      if (tz && timezoneMap[tz]) {
+        return timezoneMap[tz]
+      }
+      
+      // Handle GMT/UTC offsets
+      if (match[0].includes('GMT') || match[0].includes('UTC')) {
+        const offset = match[1]
+        if (offset) {
+          // Map common GMT offsets to timezones
+          const offsetMap: { [key: string]: string } = {
+            '+0': 'UTC',
+            '+1': 'Europe/Paris',
+            '+2': 'Europe/Athens',
+            '+3': 'Europe/Moscow',
+            '+4': 'Asia/Dubai',
+            '+5': 'Asia/Karachi',
+            '+5:30': 'Asia/Kolkata',
+            '+6': 'Asia/Dhaka',
+            '+7': 'Asia/Bangkok',
+            '+8': 'Asia/Singapore',
+            '+9': 'Asia/Tokyo',
+            '+10': 'Australia/Sydney',
+            '+12': 'Pacific/Auckland',
+            '-5': 'America/New_York',
+            '-6': 'America/Chicago',
+            '-7': 'America/Denver',
+            '-8': 'America/Los_Angeles',
+            '-9': 'America/Anchorage',
+            '-10': 'Pacific/Honolulu',
+          }
+          
+          const offsetKey = offset + (match[2] ? ':' + match[2] : '')
+          if (offsetMap[offsetKey]) {
+            return offsetMap[offsetKey]
+          }
+        }
+      }
+    }
+  }
+  
+  // Look for city/location mentions
+  for (const [location, timezone] of Object.entries(timezoneMap)) {
+    if (lowerText.includes(location)) {
+      return timezone
+    }
+  }
+  
+  // Look for country mentions
+  const countryPatterns = [
+    { pattern: /\b(usa|united states|america)\b/i, timezone: 'America/New_York' },
+    { pattern: /\b(uk|united kingdom|britain)\b/i, timezone: 'Europe/London' },
+    { pattern: /\b(japan)\b/i, timezone: 'Asia/Tokyo' },
+    { pattern: /\b(china)\b/i, timezone: 'Asia/Shanghai' },
+    { pattern: /\b(singapore)\b/i, timezone: 'Asia/Singapore' },
+    { pattern: /\b(australia)\b/i, timezone: 'Australia/Sydney' },
+    { pattern: /\b(india)\b/i, timezone: 'Asia/Kolkata' },
+    { pattern: /\b(germany)\b/i, timezone: 'Europe/Berlin' },
+    { pattern: /\b(france)\b/i, timezone: 'Europe/Paris' },
+  ]
+  
+  for (const { pattern, timezone } of countryPatterns) {
+    if (pattern.test(text)) {
+      return timezone
+    }
+  }
+  
+  // Default fallback
+  return 'America/New_York'
 } 
