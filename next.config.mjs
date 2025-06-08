@@ -9,7 +9,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Netlify deployment optimization - ensure server-side features work
   experimental: {
     serverComponentsExternalPackages: ['pdf-parse', 'tesseract.js', 'pdfjs-dist'],
   },
