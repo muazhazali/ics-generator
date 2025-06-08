@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:security": "node scripts/test-security.js",
+    "test:security:prod": "TEST_URL=https://your-domain.com node scripts/test-security.js"
   },
   "dependencies": {
     "@cerebras/cerebras_cloud_sdk": "^1.35.0",

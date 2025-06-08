@@ -1,5 +1,13 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import Cerebras from '@cerebras/cerebras_cloud_sdk'
+import { 
+  checkRateLimit, 
+  recordRequest, 
+  validateContent, 
+  checkSuspiciousRequest,
+  getClientIP,
+  SECURITY_HEADERS 
+} from '@/lib/security'
 
 const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY
 
@@ -11,41 +19,105 @@ const cerebras = CEREBRAS_API_KEY ? new Cerebras({
 // Timeout and retry configuration
 const MAX_RETRIES = 2
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  let success = false
+  
   try {
-    const { content } = await request.json()
-
-    if (!content) {
+    // Security checks
+    const rateLimitCheck = checkRateLimit(request, true) // This is an AI request
+    if (!rateLimitCheck.allowed) {
+      recordRequest(request, '/api/process-event', false, true)
       return NextResponse.json(
-        { error: 'Content is required' },
-        { status: 400 }
+        { 
+          error: rateLimitCheck.reason,
+          retryAfter: rateLimitCheck.retryAfter 
+        },
+        { 
+          status: 429,
+          headers: {
+            ...SECURITY_HEADERS,
+            'Retry-After': rateLimitCheck.retryAfter?.toString() || '60',
+            'X-RateLimit-Limit': '20',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': new Date(Date.now() + (rateLimitCheck.retryAfter || 60) * 1000).toISOString(),
+          }
+        }
       )
     }
 
-    console.log('Processing content:', content.substring(0, 100) + '...')
+    // Check for suspicious requests
+    const suspiciousCheck = checkSuspiciousRequest(request)
+    if (suspiciousCheck.suspicious) {
+      console.warn(`Suspicious request from ${getClientIP(request)}: ${suspiciousCheck.reason}`)
+      recordRequest(request, '/api/process-event', false, true)
+      return NextResponse.json(
+        { error: 'Request blocked for security reasons' },
+        { 
+          status: 403,
+          headers: SECURITY_HEADERS
+        }
+      )
+    }
+
+    const { content } = await request.json()
+
+    if (!content) {
+      recordRequest(request, '/api/process-event', false, true)
+      return NextResponse.json(
+        { error: 'Content is required' },
+        { 
+          status: 400,
+          headers: SECURITY_HEADERS
+        }
+      )
+    }
+
+    // Validate and sanitize content
+    const contentValidation = validateContent(content)
+    if (!contentValidation.valid) {
+      recordRequest(request, '/api/process-event', false, true)
+      return NextResponse.json(
+        { error: contentValidation.reason },
+        { 
+          status: 400,
+          headers: SECURITY_HEADERS
+        }
+      )
+    }
+
+    const sanitizedContent = contentValidation.sanitized!
+    console.log('Processing content:', sanitizedContent.substring(0, 100) + '...')
 
     // Try AI processing first, with fallback to local processing
     let eventData
     
     if (cerebras) {
       try {
-        eventData = await processWithAI(content)
+        eventData = await processWithAI(sanitizedContent)
         console.log('Successfully processed with AI:', eventData)
+        success = true
       } catch (error) {
         console.warn('AI processing failed, falling back to local processing:', error)
-        eventData = processLocally(content)
+        eventData = processLocally(sanitizedContent)
+        success = true // Local processing still counts as success
       }
     } else {
       console.log('No API key configured, using local processing')
-      eventData = processLocally(content)
+      eventData = processLocally(sanitizedContent)
+      success = true
     }
 
     // Validate the extracted data
     if (!eventData.title && !eventData.date) {
       console.error('No meaningful event information could be extracted')
+      recordRequest(request, '/api/process-event', false, true)
       return NextResponse.json(
         { error: 'Could not extract event information from the provided content' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: SECURITY_HEADERS
+        }
       )
     }
 
@@ -60,12 +132,29 @@ export async function POST(request: Request) {
       timezone: eventData.timezone || 'America/New_York'
     }
 
-    return NextResponse.json(processedData)
+    // Record successful request
+    recordRequest(request, '/api/process-event', true, true)
+    
+    // Log processing time for monitoring
+    const processingTime = Date.now() - startTime
+    console.log(`Request processed successfully in ${processingTime}ms from IP: ${getClientIP(request)}`)
+
+    return NextResponse.json(processedData, {
+      headers: SECURITY_HEADERS
+    })
   } catch (error) {
     console.error('Error processing event:', error)
+    recordRequest(request, '/api/process-event', false, true)
+    
+    // Log error with IP for monitoring
+    console.error(`Request failed from IP: ${getClientIP(request)}, Error: ${error}`)
+    
     return NextResponse.json(
       { error: 'Failed to process event information' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: SECURITY_HEADERS
+      }
     )
   }
 }

@@ -110,12 +110,59 @@ async function extractTextFromDocx(file: File): Promise<string> {
   }
 }
 
+// Security checks for file processing
+function validateFileForProcessing(file: File): { valid: boolean; reason?: string } {
+  // Check file size (25MB limit)
+  const MAX_FILE_SIZE = 25 * 1024 * 1024;
+  if (file.size > MAX_FILE_SIZE) {
+    return {
+      valid: false,
+      reason: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB`
+    };
+  }
+
+  // Check for suspicious file names
+  const suspiciousPatterns = [
+    /\.(exe|bat|cmd|scr|pif|com|dll|vbs|js|jar|app|deb|rpm)$/i,
+    /[<>:"|?*]/,
+    /^\./,
+    /\.\./,
+  ];
+
+  for (const pattern of suspiciousPatterns) {
+    if (pattern.test(file.name)) {
+      return {
+        valid: false,
+        reason: 'File name contains suspicious characters or extension'
+      };
+    }
+  }
+
+  // Check file name length
+  if (file.name.length > 255) {
+    return {
+      valid: false,
+      reason: 'File name too long'
+    };
+  }
+
+  return { valid: true };
+}
+
 // Main file processing function
 export async function processFile(file: File, onProgress?: (progress: number, message: string) => void): Promise<string> {
   const fileType = file.type;
   const fileName = file.name.toLowerCase();
   
   try {
+    onProgress?.(5, 'Validating file...');
+    
+    // Security validation
+    const validation = validateFileForProcessing(file);
+    if (!validation.valid) {
+      throw new Error(validation.reason);
+    }
+    
     onProgress?.(10, 'Analyzing file type...');
     
     if (fileType === 'text/plain' || fileName.endsWith('.txt')) {
