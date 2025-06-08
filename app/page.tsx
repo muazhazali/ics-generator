@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Upload, FileText, Calendar, Download, Loader2, CheckCircle, AlertCircle, Type, Sparkles, Check, ChevronsUpDown } from "lucide-react"
+import { Upload, FileText, Calendar, Download, Loader2, CheckCircle, AlertCircle, Type, Sparkles, Check, ChevronsUpDown, Github, Linkedin } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -669,12 +669,42 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
         </div>
 
         {/* Footer */}
-        <div className="mt-6 sm:mt-12 text-center text-xs sm:text-sm text-gray-500 px-2">
-          <p>
-            Powered by AI • Content is processed securely and not stored •
-            <span className="block sm:inline sm:ml-2">Supports text input and file uploads</span>
-          </p>
-        </div>
+        <footer className="mt-8 sm:mt-16 border-t border-gray-200 pt-6 sm:pt-8">
+          <div className="text-center space-y-4">
+            <div className="text-xs sm:text-sm text-gray-500 px-2">
+              <p>
+                Powered by AI • Content is processed securely and not stored •
+                <span className="block sm:inline sm:ml-2">Supports text input and file uploads</span>
+              </p>
+            </div>
+            
+            <div className="flex items-center justify-center gap-6">
+              <a
+                href="https://github.com/muazhazali/ics-generator"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <span className="text-sm font-medium">GitHub</span>
+                <Github className="h-4 w-4" />
+              </a>
+              
+              <a
+                href="https://www.linkedin.com/in/muazhazali/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors"
+              >
+                <span className="text-sm font-medium">LinkedIn</span>
+                <Linkedin className="h-4 w-4" />
+              </a>
+            </div>
+            
+            <div className="text-xs text-gray-400">
+              <p>© {new Date().getFullYear()} ICS Generator. Built with Next.js and AI.</p>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   )
