@@ -50,10 +50,28 @@ export default function CalendarEventCreator() {
     message: "",
   })
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (!file) return
+    
+    // Validate file type
+    const { isValidFileType, getFileTypeDescription } = await import("@/lib/fileProcessor")
+    
+    if (!isValidFileType(file)) {
+      setProcessingState({
+        status: "error",
+        progress: 0,
+        message: `Unsupported file type. Please upload a PDF, image, text file, or Word document.`,
+      })
+      return
+    }
+    
     setUploadedFile(file)
+    setProcessingState({
+      status: "idle",
+      progress: 0,
+      message: `${getFileTypeDescription(file)} ready for processing`,
+    })
   }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -81,39 +99,23 @@ export default function CalendarEventCreator() {
       if (inputMethod === "text") {
         contentToProcess = textInput
       } else if (uploadedFile) {
-        // Simulate file processing and text extraction
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        if (uploadedFile.type === "text/plain") {
-          contentToProcess = await uploadedFile.text()
-        } else if (uploadedFile.type === "application/pdf") {
-          // Simulate PDF text extraction
-          contentToProcess = `Sample extracted text from PDF: 
-          Team Meeting - Project Kickoff
-          Date: December 15, 2024
-          Time: 2:00 PM - 3:30 PM EST
-          Location: Conference Room A, 123 Main St, New York, NY
-          Description: Quarterly planning meeting to discuss project goals and timeline.
-          Attendees: John Smith, Jane Doe, Mike Johnson`
-        } else if (uploadedFile.type.startsWith("image/")) {
-          // Simulate OCR extraction
-          contentToProcess = `Sample OCR extracted text:
-          Holiday Party Invitation
-          Join us for our annual holiday celebration!
-          Date: Friday, December 22, 2024
-          Time: 6:00 PM - 10:00 PM
-          Location: Grand Ballroom, Downtown Hotel
-          RSVP by December 18th`
-        } else {
-          contentToProcess = "Sample document content with event information..."
-        }
+        // Real file processing using our utility functions
+        const { processFile } = await import("@/lib/fileProcessor")
+        
+        contentToProcess = await processFile(uploadedFile, (progress, message) => {
+          setProcessingState({
+            status: "processing",
+            progress: Math.min(progress, 70), // Reserve 70-100% for AI processing
+            message,
+          })
+        })
       }
 
       setExtractedText(contentToProcess)
       setProcessingState({
         status: "processing",
         progress: 75,
-        message: "Extracting event details with AI...",
+        message: "Analyzing content with AI to extract event details...",
       })
 
       // Call our API endpoint
@@ -139,10 +141,25 @@ export default function CalendarEventCreator() {
       })
     } catch (error) {
       console.error('Error processing event:', error)
+      
+      let errorMessage = "Failed to process content. Please try again."
+      
+      if (error instanceof Error) {
+        if (error.message.includes('PDF')) {
+          errorMessage = "Failed to extract text from PDF. Please ensure the PDF contains selectable text."
+        } else if (error.message.includes('OCR') || error.message.includes('image')) {
+          errorMessage = "Failed to extract text from image. Please ensure the image contains clear, readable text."
+        } else if (error.message.includes('Unsupported file type')) {
+          errorMessage = error.message
+        } else if (error.message.includes('Failed to process event')) {
+          errorMessage = "AI processing failed. Please check your content and try again."
+        }
+      }
+      
       setProcessingState({
         status: "error",
         progress: 0,
-        message: "Failed to process content. Please try again.",
+        message: errorMessage,
       })
     }
   }

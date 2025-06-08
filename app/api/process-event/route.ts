@@ -77,11 +77,11 @@ async function processWithAI(content: string, retryCount = 0): Promise<any> {
 
   try {
     const chatCompletion = await cerebras.chat.completions.create({
-      model: 'llama3.1-8b',
+      model: "llama-4-scout-17b-16e-instruct",
       messages: [
         {
-          role: 'system',
-          content: `You are an AI assistant that extracts event information from text. 
+          role: "system",
+          content: `You are an AI assistant that extracts event information from text. Make sure to understand the language of the text and extract the information in the same language.
           Extract the following information if available:
           - Event title
           - Date (in YYYY-MM-DD format)
@@ -100,17 +100,17 @@ async function processWithAI(content: string, retryCount = 0): Promise<any> {
             "description": "string"
           }
           
-          If you cannot find specific information, use empty strings for missing fields.`
+          If you cannot find specific information, use empty strings for missing fields.`,
         },
         {
-          role: 'user',
-          content: content
-        }
+          role: "user",
+          content: content,
+        },
       ],
       temperature: 0.1,
       max_completion_tokens: 300,
-      response_format: { type: "json_object" }
-    })
+      response_format: { type: "json_object" },
+    });
 
     console.log('Cerebras API response:', chatCompletion)
     
