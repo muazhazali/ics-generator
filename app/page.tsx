@@ -276,11 +276,7 @@ END:VCALENDAR`
                         id="textInput"
                         placeholder="Paste or type your event information here...
 
-Examples:
-• Meeting invitation emails
-• Event announcements
-• Calendar details
-• Any text containing date, time, and location"
+Examples: Meeting invitations, event announcements, calendar details, or any text with date, time, and location."
                         value={textInput}
                         onChange={(e) => setTextInput(e.target.value)}
                         rows={12}
