@@ -38,6 +38,10 @@ const nextConfig = {
     
     return config
   },
+  // Add compiler options for better optimization
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
 }
 
 export default nextConfig
