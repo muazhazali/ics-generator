@@ -293,23 +293,23 @@ END:VCALENDAR`
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-2 sm:p-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Calendar className="h-8 w-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Calendar Event Creator</h1>
+        <div className="text-center mb-4 sm:mb-8">
+          <div className="flex items-center justify-center gap-2 mb-2 sm:mb-4">
+            <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">ICS Generator</h1>
           </div>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto px-2">
             Transform any document into calendar events with AI-powered extraction. Type, paste, or upload content to
             get perfectly formatted ICS files in seconds.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-3 sm:gap-6">
           {/* Left Column - Input & Processing */}
-          <div className="space-y-6">
+          <div className="space-y-3 sm:space-y-6">
             {/* Input Methods */}
             <Card>
               <CardHeader>
@@ -322,13 +322,15 @@ END:VCALENDAR`
               <CardContent>
                 <Tabs value={inputMethod} onValueChange={(value) => setInputMethod(value as "text" | "file")}>
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="text" className="flex items-center gap-2">
-                      <Type className="h-4 w-4" />
-                      Type/Paste Text
+                    <TabsTrigger value="text" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <Type className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Type/Paste Text</span>
+                      <span className="sm:hidden">Text</span>
                     </TabsTrigger>
-                    <TabsTrigger value="file" className="flex items-center gap-2">
-                      <Upload className="h-4 w-4" />
-                      Upload File
+                    <TabsTrigger value="file" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Upload File</span>
+                      <span className="sm:hidden">File</span>
                     </TabsTrigger>
                   </TabsList>
 
@@ -342,8 +344,8 @@ END:VCALENDAR`
 Examples: Meeting invitations, event announcements, calendar details, or any text with date, time, and location."
                         value={textInput}
                         onChange={(e) => setTextInput(e.target.value)}
-                        rows={12}
-                        className="resize-none"
+                        rows={8}
+                        className="resize-none text-sm"
                       />
                       <p className="text-sm text-gray-500">
                         {textInput.length} characters • Supports copy-paste from emails, documents, and web pages
@@ -355,18 +357,18 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
                     <div className="space-y-4">
                       <div
                         {...getRootProps()}
-                        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                        className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center cursor-pointer transition-colors ${
                           isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
                         }`}
                       >
                         <input {...getInputProps()} />
-                        <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <FileText className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-2 sm:mb-4" />
                         {isDragActive ? (
-                          <p className="text-blue-600 font-medium">Drop the file here...</p>
+                          <p className="text-blue-600 font-medium text-sm sm:text-base">Drop the file here...</p>
                         ) : (
                           <div>
-                            <p className="text-gray-600 mb-2">Drag & drop a file here, or click to select</p>
-                            <p className="text-sm text-gray-500">PDF, DOCX, TXT, JPG, PNG, HEIC (max 25MB)</p>
+                            <p className="text-gray-600 mb-1 sm:mb-2 text-sm sm:text-base">Drag & drop a file here, or click to select</p>
+                            <p className="text-xs sm:text-sm text-gray-500">PDF, DOCX, TXT, JPG, PNG, HEIC (max 25MB)</p>
                           </div>
                         )}
                       </div>
@@ -467,7 +469,7 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
           </div>
 
           {/* Right Column - Event Details & Export */}
-          <div className="space-y-6">
+          <div className="space-y-3 sm:space-y-6">
             {/* Event Details Form */}
             <Card>
               <CardHeader>
@@ -488,7 +490,7 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="date">Date *</Label>
                     <Input
@@ -574,7 +576,7 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="startTime">Start Time *</Label>
                     <Input
@@ -635,7 +637,7 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
                     </Alert>
                   )}
 
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       onClick={generateICS}
                       disabled={!eventData.title || !eventData.date || !eventData.startTime}
@@ -644,7 +646,7 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
                       <Download className="h-4 w-4 mr-2" />
                       Download ICS File
                     </Button>
-                    <Button variant="outline" onClick={resetForm}>
+                    <Button variant="outline" onClick={resetForm} className="sm:w-auto">
                       Reset
                     </Button>
                   </div>
@@ -667,10 +669,10 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
         </div>
 
         {/* Footer */}
-        <div className="mt-12 text-center text-sm text-gray-500">
+        <div className="mt-6 sm:mt-12 text-center text-xs sm:text-sm text-gray-500 px-2">
           <p>
             Powered by AI • Content is processed securely and not stored •
-            <span className="ml-2">Supports text input and file uploads</span>
+            <span className="block sm:inline sm:ml-2">Supports text input and file uploads</span>
           </p>
         </div>
       </div>
