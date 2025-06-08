@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server'
+import Cerebras from '@cerebras/cerebras_cloud_sdk'
 
 const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY
-const CEREBRAS_API_URL = 'https://api.cerebras.com/v1/chat/completions'
 
-// Timeout configuration
-const API_TIMEOUT = 10000 // 10 seconds
+// Initialize Cerebras client
+const cerebras = CEREBRAS_API_KEY ? new Cerebras({
+  apiKey: CEREBRAS_API_KEY,
+}) : null
+
+// Timeout and retry configuration
 const MAX_RETRIES = 2
 
 export async function POST(request: Request) {
@@ -23,7 +27,7 @@ export async function POST(request: Request) {
     // Try AI processing first, with fallback to local processing
     let eventData
     
-    if (CEREBRAS_API_KEY) {
+    if (cerebras) {
       try {
         eventData = await processWithAI(content)
         console.log('Successfully processed with AI:', eventData)
@@ -67,70 +71,53 @@ export async function POST(request: Request) {
 }
 
 async function processWithAI(content: string, retryCount = 0): Promise<any> {
-  try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT)
+  if (!cerebras) {
+    throw new Error('Cerebras client not initialized')
+  }
 
-    const response = await fetch(CEREBRAS_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${CEREBRAS_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'llama3.1-8b',
-        messages: [
+  try {
+    const chatCompletion = await cerebras.chat.completions.create({
+      model: 'llama3.1-8b',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an AI assistant that extracts event information from text. 
+          Extract the following information if available:
+          - Event title
+          - Date (in YYYY-MM-DD format)
+          - Start time (in HH:MM format, 24-hour format)
+          - End time (in HH:MM format, 24-hour format)
+          - Location
+          - Description (any relevant information about the event)
+          
+          Return ONLY a valid JSON object with these exact keys:
           {
-            role: 'system',
-            content: `You are an AI assistant that extracts event information from text. 
-            Extract the following information if available:
-            - Event title
-            - Date (in YYYY-MM-DD format)
-            - Start time (in HH:MM format, 24-hour format)
-            - End time (in HH:MM format, 24-hour format)
-            - Location
-            - Description
-            
-            Return ONLY a valid JSON object with these exact keys:
-            {
-              "title": "string",
-              "date": "YYYY-MM-DD",
-              "startTime": "HH:MM",
-              "endTime": "HH:MM",
-              "location": "string",
-              "description": "string"
-            }
-            
-            If you cannot find specific information, use empty strings for missing fields.`
-          },
-          {
-            role: 'user',
-            content: content
+            "title": "string",
+            "date": "YYYY-MM-DD",
+            "startTime": "HH:MM",
+            "endTime": "HH:MM",
+            "location": "string",
+            "description": "string"
           }
-        ],
-        temperature: 0.1,
-        max_tokens: 300
-      }),
-      signal: controller.signal
+          
+          If you cannot find specific information, use empty strings for missing fields.`
+        },
+        {
+          role: 'user',
+          content: content
+        }
+      ],
+      temperature: 0.1,
+      max_completion_tokens: 300,
+      response_format: { type: "json_object" }
     })
 
-    clearTimeout(timeoutId)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Cerebras API error:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText
-      })
-      throw new Error(`Cerebras API error: ${response.status} ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    console.log('Cerebras API response:', data)
+    console.log('Cerebras API response:', chatCompletion)
     
     // Parse the AI response to extract event details
-    const aiResponse = data.choices[0]?.message?.content
+    const choices = chatCompletion.choices as any[]
+    const aiResponse = choices?.[0]?.message?.content
+    
     if (!aiResponse) {
       throw new Error('No response content from AI')
     }
@@ -155,12 +142,22 @@ async function processWithAI(content: string, retryCount = 0): Promise<any> {
 
     return eventData
   } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error('Request timed out')
-    }
+    // Handle different types of errors
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorName = error instanceof Error ? error.name : 'UnknownError'
     
-    // Retry logic
-    if (retryCount < MAX_RETRIES && (error.name === 'AbortError' || error.message.includes('fetch failed'))) {
+    console.error('AI processing error:', { name: errorName, message: errorMessage })
+    
+    // Retry logic for specific error types (based on Cerebras SDK error types)
+    if (retryCount < MAX_RETRIES && (
+      errorName === 'APIConnectionError' || 
+      errorName === 'APITimeoutError' ||
+      errorName === 'RateLimitError' ||
+      errorName === 'InternalServerError' ||
+      errorMessage.includes('fetch failed') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('network')
+    )) {
       console.log(`Retrying AI processing (attempt ${retryCount + 1}/${MAX_RETRIES})`)
       await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))) // Exponential backoff
       return processWithAI(content, retryCount + 1)
