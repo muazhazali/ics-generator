@@ -193,6 +193,8 @@ export default function CalendarEventCreator() {
       }
 
       const aiExtractedData = await response.json()
+      console.log('AI extracted data:', aiExtractedData)
+      console.log('Detected timezone:', aiExtractedData.timezone)
       setEventData(aiExtractedData)
       
       setProcessingState({
@@ -497,7 +499,12 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
                     />
                   </div>
                   <div>
-                    <Label htmlFor="timezone">Timezone</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="timezone">Timezone</Label>
+                      {eventData.timezone && !TIMEZONES.find(tz => tz.value === eventData.timezone) && (
+                        <Badge variant="secondary" className="text-xs">AI Detected</Badge>
+                      )}
+                    </div>
                     <Popover open={timezoneOpen} onOpenChange={setTimezoneOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -507,7 +514,7 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
                           className="w-full justify-between"
                         >
                           {eventData.timezone
-                            ? TIMEZONES.find((timezone) => timezone.value === eventData.timezone)?.label
+                            ? TIMEZONES.find((timezone) => timezone.value === eventData.timezone)?.label || `${eventData.timezone} (AI Detected)`
                             : "Select timezone..."}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -518,6 +525,27 @@ Examples: Meeting invitations, event announcements, calendar details, or any tex
                           <CommandList>
                             <CommandEmpty>No timezone found.</CommandEmpty>
                             <CommandGroup>
+                              {/* Show AI-detected timezone first if it's not in the predefined list */}
+                              {eventData.timezone && !TIMEZONES.find(tz => tz.value === eventData.timezone) && (
+                                <CommandItem
+                                  key={eventData.timezone}
+                                  value={eventData.timezone}
+                                  onSelect={(currentValue) => {
+                                    handleInputChange("timezone", currentValue)
+                                    setTimezoneOpen(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${
+                                      eventData.timezone === eventData.timezone ? "opacity-100" : "opacity-0"
+                                    }`}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="font-medium text-blue-600">AI Detected</span>
+                                    <span className="text-sm text-muted-foreground">{eventData.timezone}</span>
+                                  </div>
+                                </CommandItem>
+                              )}
                               {TIMEZONES.map((timezone) => (
                                 <CommandItem
                                   key={timezone.value}
