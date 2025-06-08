@@ -9,6 +9,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Netlify deployment optimization
 }
 
 export default nextConfig
