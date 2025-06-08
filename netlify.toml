@@ -9,10 +9,6 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[functions]
-  # Increase timeout for file processing
-  timeout = 30
-
 # Security headers
 [[headers]]
   for = "/*"
